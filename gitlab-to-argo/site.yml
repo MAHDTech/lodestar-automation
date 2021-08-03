@@ -12,6 +12,13 @@
     file:
      path: output
      state: directory
+  - name: Show Application Definitions
+    template:
+      src: files/application_template.j2
+      dest: "output/{{ item.id }}.yml"
+    loop: "{{ gitlab_groups.rest_output }}"
+    diff: yes
+    check_mode: yes
   - name: Write Application Definitions
     template:
       src: files/application_template.j2

@@ -1,0 +1,93 @@
+---
+- hosts: localhost
+  tasks:
+    - name: Wait for IdM to be responsive
+      uri:
+        url: "https://{{ ipa_host }}/ipa/ui/"
+        validate_certs: "{{ ipa_validate_certs }}"
+      register: rc
+      until: rc.status|trim|int == 200
+      retries: 90
+      delay: 60
+      when:
+        - ipa_host is defined
+
+- name: Remove participants to IdM
+  import_playbook: "../../requirements_roles/infra-ansible/playbooks/manage-identities/manage-idm-identities.yml"
+  vars:
+    identities: "{{ lodestar_identities_remove }}"
+
+- hosts: localhost
+  tasks:
+
+    - name: Process the user removal queue
+      block:
+
+        - name: "Clone git repository"
+          include_role:
+            name: "../../requirements_roles/infra-ansible/roles/scm/git"
+          vars:
+            action: pull
+          when:
+            - repository is defined
+
+        - name: Ensure list of email addresses is empty
+          set_fact:
+            emails_to_match: []
+
+        - name: Create a list of email addresses to search the queue
+          set_fact:
+            emails_to_match: "{{ (emails_to_match | default([])) + [ user.email ] }}"
+          loop:
+            "{{ lodestar_identities_remove.users | flatten(levels=1) }}"
+          loop_control:
+            index_var: index
+            loop_var: user
+
+        - name: "Remove processed files from job queue"
+          include_role:
+            name: "../../requirements_roles/infra-ansible/roles/files/remove-files"
+          vars:
+            dry_run: False
+            directory: "{{ scm_dir }}/queue"
+            files: "user-management-*.json"
+            match: "{{ emails_to_match | unique }}"
+          when:
+            - emails_to_match is defined
+
+        - name: "Push git repository"
+          include_role:
+            name: "../../requirements_roles/infra-ansible/roles/scm/git"
+          vars:
+            action: push
+          when:
+            - repository is defined
+
+        - name: Pre-populate identities
+          set_fact:
+            identities: "{{ lodestar_identities }}"
+
+      when:
+        - lodestar_identities_remove is defined
+        - lodestar_identities_remove != []
+
+- name: Add participants to IdM
+  import_playbook: "../../requirements_roles/infra-ansible/playbooks/manage-identities/manage-idm-identities.yml"
+  vars:
+    identities: "{{ lodestar_identities }}"
+
+- hosts: mail-host
+  gather_facts: false
+  tasks:
+    - name: "Include additional variables / inventory content"
+      include_vars:
+        file: "{{ item }}"
+      with_items: "{{ email_template | fileglob }}"
+
+- name: Notify users
+  import_playbook: "../../requirements_roles/infra-ansible/playbooks/notifications/email-notify-users.yml"
+  vars:
+    users: "{{ identities.users }}"
+
+- name: Update Anarchy with status
+  import_playbook: completion_callback.yml

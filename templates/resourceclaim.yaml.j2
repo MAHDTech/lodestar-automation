@@ -3,7 +3,7 @@
 apiVersion: poolboy.gpte.redhat.com/v1
 kind: ResourceClaim
 metadata:
-  name: {{ (engagement_type | lower) + '.' + (governor_type | lower) + '.' + (governor_spec | lower ) }}-{{ project_id }}{% if inv_ts is defined %}-{{ inv_ts | trim }}{% endif %}
+  name: {{ (engagement_type | lower) + '.' + (governor_type | lower) + '.' + (governor_spec | lower ) }}-{{ project_id }}
 spec:
   resources:
   - template:
@@ -18,5 +18,8 @@ spec:
       spec:
         governor: "{{ (engagement_type | lower) +'.' + (governor_type | lower) + '.' + (governor_spec | lower) }}"
         vars:
+          {%- if desired_state is defined and desired_state|length %}
+          desired_state: {{ desired_state }}
+          {%- endif %}
           job_vars:
             {{ claim_content | to_nice_yaml | indent(12) }}

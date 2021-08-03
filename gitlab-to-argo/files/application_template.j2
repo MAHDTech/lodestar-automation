@@ -20,3 +20,14 @@ spec:
       prune: true
       selfHeal: true
 {% endif %}
+{% if ignoreDifferences is defined %}
+  ignoreDifferences:
+{% for ignoreDifference in ignoreDifferences %}
+    - group: {{ ignoreDifference.group }}
+      kind: {{ ignoreDifference.kind }}
+      jsonPointers:
+{% for jsonPointer in ignoreDifference.jsonPointers %}
+        - {{ jsonPointer }}
+{% endfor %}
+{% endfor %}
+{% endif %}

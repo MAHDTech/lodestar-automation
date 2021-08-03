@@ -1,0 +1,19 @@
+---
+- name: "Read User Management Job: {{ job.path | basename }}"
+  include_vars:
+    file: "{{ job.path }}"
+
+- name: "Display User Management Job Details"
+  debug:
+    msg:
+      - "Adding the follow user details to the removal list"
+      - "User ID: {{ uuid }}"
+      - "First Name: {{ first_name }}"
+      - "Last Name: {{ last_name }}"
+      - "Email: {{ email }}"
+      - "Role: {{ role }}"
+      - "State: absent"
+
+- name: "Add User to removal queue"
+  set_fact:
+    users_remove: "{{ (users_remove | default([])) + [ { 'first_name': (first_name | trim), 'last_name': (last_name | trim), 'email': (email | trim) , 'user_name': (email.split('@')[0] | trim), 'state': 'absent' } ] }}"

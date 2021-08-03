@@ -1,0 +1,15 @@
+---
+##################################################
+# Requirements (Roles)
+##################################################
+
+collections: []
+
+roles:
+  - name: infra-ansible
+    scm: git
+    #src: https://github.com/redhat-cop/infra-ansible
+    #version: v2.0.4
+    # TODO: Update once relevant PR is merged.
+    src: https://github.com/MAHDTech/infra-ansible
+    version: feature/user-reset

@@ -1,0 +1,10 @@
+---
+- hosts: localhost
+  name: Destroy playbook
+  tasks:
+    - name: Delete something
+      debug:
+        msg: Yay delete!
+
+- name: Tell Anarchy to clean up
+  import_playbook: completion_callback.yml

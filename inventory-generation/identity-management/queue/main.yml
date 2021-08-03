@@ -1,0 +1,20 @@
+---
+- name: Determine Job types to process
+  block:
+    - name: Check for User Management Jobs
+      find:
+        paths: "{{ directory }}/queue"
+        patterns: "user-management-*.json"
+      register: jobs_user_management
+  when:
+    - job_queue.stat.path is defined
+
+- name: Process Job types
+  block:
+    - name: Process User Management Jobs
+      include: "user-management.yml"
+      with_items: "{{ jobs_user_management.files }}"
+      loop_control:
+        loop_var: job
+      when:
+        - jobs_user_management is defined

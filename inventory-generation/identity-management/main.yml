@@ -1,131 +1,160 @@
 ---
-
 - name: Generate identity-management inventory based off of engagement.json
   hosts: local
   gather_facts: false
   tasks:
+    - name: "Fail If Working Directory Is Not Provided"
+      fail:
+        msg: "directory var needs to be provided in order to ensure a safe working directory"
+      when:
+        - directory is undefined or (directory | trim) == ""
 
-  - name: "Fail If Working Directory Is Not Provided"
-    fail:
-      msg: "directory var needs to be provided in order to ensure a safe working directory"
-    when:
-      - directory is undefined or (directory | trim) == ""
+    - name: "Fail If Governor Type Is Not Provided"
+      fail:
+        msg: "governor_type and governor_spec vars need to be provided in order to indicate babylon workflow"
+      when:
+        - (governor_type is undefined or (governor_type | trim) == "") or (governor_spec is undefined or (governor_spec | trim) == "")
 
-  - name: "Fail If Governor Type Is Not Provided"
-    fail:
-      msg: "governor_type and governor_spec vars need to be provided in order to indicate babylon workflow"
-    when:
-      - (governor_type is undefined or (governor_type | trim) == "") or (governor_spec is undefined or (governor_spec | trim) == "")
-
-  - name: Generate Timestamp
-    set_fact:
-      inv_ts: " {{ lookup('pipe','date +%Y%m%d%H%M%S') }}"
-
-  - name: Read Engagement Data
-    include_vars:
-      file: "{{ directory }}/engagement.json"
-
-  - name: Read Credentials
-    include_vars:
-      file: "{{ directory }}/{{ config_dir }}/{{ item }}"
-    loop:
-      - "ocp-admin-credentials.json"
-      - "ocp-ldap-sa-credentials.json"
-
-  - name: "Add users to inventory"
-    set_fact:
-      users: "{{ (users | default([])) +  [ { 'first_name': (item.first_name | trim), 'last_name': (item.last_name | trim), 'email': (item.email | trim) , 'user_name': (item.email.split('@')[0] | trim) } ] }}"
-    loop: "{{ engagement_users }}"
-
-  - name: "Add LDAP Service Account"
-    set_fact:
-      users: "{{ (users | default([])) + [ { 'first_name': 'LDAP', 'last_name': 'SA', 'email': 'ldap@localhost.com', 'user_name': ocp_ldap_sa_username, 'generate_password': false, 'password': ocp_ldap_sa_password  } ] }}"
-
-  - name: "Get Unique Groups"
-    set_fact:
-      unique_groups: "{{ engagement_users | json_query('[].role') | unique }}"
-
-  - name: "Set Group Membership"
-    set_fact:
-      usrgrp: "{{ (usrgrp | default([])) + [ {'name': item, 'members': (engagement_users | selectattr('role','equalto',item) | map(attribute='email') | map('regex_replace','@.*','') | list) } ] }}"
-    loop: "{{ unique_groups }}"
-
-  - name: Add LDAP Groups Grouping
-    set_fact:
-      usrgrp: "{{ (usrgrp | default([])) + [ {'name': 'ldap-members', 'childgroups': unique_groups } ] }}"
-
-  - name: "Set List of Mail CC"
-    set_fact:
-      cc_list: "{{ ', '.join(( '{{ engagement_lead_email }}', '{{ technical_lead_email }}' )) }}"
-
-  #####################################################################################################################
-  # Right now, the only supported configuration is a list of one hosting environment.
-  # In the near future, this should be updated to support more than one, and this comment (and the code below)
-  # should be updated to support this. For now, this checking is just looking for more than zero hosting environments,
-  # but will default to use the value(s) from the first one.
-
-  - block:
-    - name: "Set IDM facts"
+    - name: Generate Timestamp
       set_fact:
-        ipa_host: "{{ 'ipa.apps.' + (hosting_environments[0].ocp_sub_domain | lower) + '.' + engagement_region | default('dev') + '-1.' + ocp_base_url }}"
-        ipa_admin_user: "{{ ocp_admin_username }}"
-        ipa_admin_password: "{{ ocp_admin_password }}"
-        ipa_validate_certs: "{{ ipa_validate_certs | default(true) }}"
+        inv_ts: "{{ lookup('pipe','date +%Y%m%d%H%M%S') }}"
 
-    - name: "Assemble inventory"
-      set_fact:
-        claim_content:
-          env_end_date: "{{ (archive_date | regex_replace('^(.*)T.*$', '\\1') | to_datetime('%Y-%m-%d')).strftime('%d %b %Y') }}"
-          end_date: "{{ (end_date | regex_replace('^(.*)T.*$', '\\1') | to_datetime('%Y-%m-%d')).strftime('%d %b %Y') }}"
-          start_date: "{{ (start_date | regex_replace('^(.*)T.*$', '\\1') | to_datetime('%Y-%m-%d')).strftime('%d %b %Y') }}"
-          customer_name: "{{ customer_name }}"
-          project_name: "{{ project_name }}"
-          ipa_validate_certs: "{{ ipa_validate_certs }}"
-          ipa_host: "{{ ipa_host }}"
-          ipa_admin_user: "{{ ipa_admin_user }}"
-          ipa_admin_password: "{{ ipa_admin_password }}"
-          list_of_mail_cc: "{{ cc_list }}"
-          lodestar_identities:
-            users: "{{ users }}"
-            groups: "{{ usrgrp }}"
-
-    - name: "Check For Existing Inventory File"
-      stat:
-        path: "{{ directory }}/iac/inventories/identity-management/inventory/group_vars/all.yml"
-      register: existing_inv
-
-    - name: "Pull existing inventory vars"
+    - name: Read Engagement Data
       include_vars:
-        file: "{{ directory }}/iac/inventories/identity-management/inventory/group_vars/all.yml"
-        name: existing_inv_contents
-      when:
-        - existing_inv.stat.exists
+        file: "{{ directory }}/engagement.json"
 
-    - name: "Diff existing vars with new inventory"
+    - name: Read Credentials
+      include_vars:
+        file: "{{ directory }}/{{ config_dir }}/{{ item }}"
+      loop:
+        - "ocp-admin-credentials.json"
+        - "ocp-ldap-sa-credentials.json"
+
+    - name: "Add users to inventory"
       set_fact:
-        inv_has_diff: true
+        users: "{{ (users | default([])) + [ { 'first_name': (item.first_name | trim), 'last_name': (item.last_name | trim), 'email': (item.email | trim) , 'user_name': (item.email.split('@')[0] | trim) } ] }}"
+      loop: "{{ engagement_users }}"
+
+    - name: "Add LDAP Service Account"
+      set_fact:
+        users: "{{ (users | default([])) + [ { 'first_name': 'LDAP', 'last_name': 'SA', 'email': 'ldap@localhost.com', 'user_name': ocp_ldap_sa_username, 'generate_password': false, 'password': ocp_ldap_sa_password  } ] }}"
+
+    - name: "Get Unique Groups"
+      set_fact:
+        unique_groups: "{{ engagement_users | json_query('[].role') | unique }}"
+
+    - name: "Set Group Membership"
+      set_fact:
+        usrgrp: "{{ (usrgrp | default([])) + [ {'name': item, 'members': (engagement_users | selectattr('role','equalto',item) | map(attribute='email') | map('regex_replace','@.*','') | list) } ] }}"
+      loop: "{{ unique_groups }}"
+
+    - name: Add LDAP Groups Grouping
+      set_fact:
+        usrgrp: "{{ (usrgrp | default([])) + [ {'name': 'ldap-members', 'childgroups': unique_groups } ] }}"
+
+    - name: "Set List of Mail CC"
+      set_fact:
+        cc_list: "{{ ', '.join(( '{{ engagement_lead_email }}', '{{ technical_lead_email }}' )) }}"
+
+    - name: "Check for Job queue"
+      ansible.builtin.stat:
+        path: "{{ directory }}/queue"
+      register: job_queue
+      ignore_errors: True
+
+    - name: "Process Job queue"
+      include: "queue/main.yml"
       when:
-        - existing_inv.stat.exists
-        - existing_inv_contents is defined
-        - existing_inv_contents != (claim_content | from_yaml)
+        - job_queue.stat.isdir is defined
 
-    - name: "Write inventory to file"
-      copy:
-        content: "{{ claim_content | to_nice_yaml(indent=2) }}"
-        dest: "{{ directory }}/iac/inventories/identity-management/inventory/group_vars/all.yml"
+    - name: "Set repository information"
+      set_fact:
+        repository_url: "{{ url | default(omit) }}"
+        repository_ssh_key: "{{ lookup('file', ssh_key_data_path, lstrip=False, rstrip=False) | default(omit) }}"
+        repository_username: "{{ username if username is defined else omit }}"
+        repository_password: "{{ password if password is defined else omit }}"
 
-    - name: "Create hosts file"
-      copy:
-        content: "[identity-hosts]\nlocalhost"
-        dest: "{{ directory }}/iac/inventories/identity-management/inventory/hosts"
+    #####################################################################################################################
+    # Right now, the only supported configuration is a list of one hosting environment.
+    # In the near future, this should be updated to support more than one, and this comment (and the code below)
+    # should be updated to support this. For now, this checking is just looking for more than zero hosting environments,
+    # but will default to use the value(s) from the first one.
 
-    - name: "Create ResourceClaim"
-      copy:
-        content: "{{ lookup('template', inventory_dir + '/../files/templates/resourceclaim.yaml.j2') }}"
-        dest: "{{ directory }}/ocp-init/id-mgmt-{{ inv_ts | trim }}.yaml"
+    - block:
+        - name: "Set Identity Provider facts"
+          set_fact:
+            idp_type: "{{ idp_type | default('idm') }}"
+            ipa_host: "{{ idp_host_url if idp_host_url is defined else 'ipa.apps.' + (hosting_environments[0].ocp_sub_domain | lower) + '.' + engagement_region | default('dev') + '-1.' + ocp_base_url }}"
+            ipa_admin_user: "{{ ocp_admin_username }}"
+            ipa_admin_password: "{{ ocp_admin_password }}"
+            ipa_validate_certs: "{{ ipa_validate_certs | default(true) }}"
+
+        - name: "Assemble inventory"
+          set_fact:
+            claim_content:
+              env_end_date: "{{ (archive_date | regex_replace('^(.*)T.*$', '\\1') | to_datetime('%Y-%m-%d')).strftime('%d %b %Y') }}"
+              end_date: "{{ (end_date | regex_replace('^(.*)T.*$', '\\1') | to_datetime('%Y-%m-%d')).strftime('%d %b %Y') }}"
+              start_date: "{{ (start_date | regex_replace('^(.*)T.*$', '\\1') | to_datetime('%Y-%m-%d')).strftime('%d %b %Y') }}"
+              customer_name: "{{ customer_name }}"
+              project_name: "{{ project_name }}"
+              ipa_validate_certs: "{{ ipa_validate_certs }}"
+              ipa_host: "{{ ipa_host }}"
+              ipa_admin_user: "{{ ipa_admin_user }}"
+              ipa_admin_password: "{{ ipa_admin_password }}"
+              list_of_mail_cc: "{{ cc_list }}"
+              lodestar_identities:
+                users: "{{ users }}"
+                groups: "{{ usrgrp }}"
+              lodestar_identities_remove:
+                users: "{{ users_remove | default([]) }}"
+              repository:
+                url: "{{ repository_url if repository_url is defined else omit }}"
+                ssh_key: "{{ ( repository_ssh_key | to_nice_yaml( default_style='>-', indent=4, width=5000 ) | trim) if repository_ssh_key is defined else omit }}"
+                username: "{{ repository_username if repository_username is defined else omit }}"
+                password: "{{ repository_password if repository_password is defined else omit }}"
+              git:
+                name: "{{ git.name if git.name is defined else omit }}"
+                username: "{{ git.username if git.username is defined else omit }}"
+                email: "{{ git.email if git.email is defined else omit }}"
+                message: "{{ git.message if git.message is defined else omit }}"
+
+        - name: "Check For Existing Inventory File"
+          stat:
+            path: "{{ directory }}/iac/inventories/identity-management/inventory/group_vars/all.yml"
+          register: existing_inv
+
+        - name: "Pull existing inventory vars"
+          include_vars:
+            file: "{{ directory }}/iac/inventories/identity-management/inventory/group_vars/all.yml"
+            name: existing_inv_contents
+          when:
+            - existing_inv.stat.exists
+
+        - name: "Diff existing vars with new inventory"
+          set_fact:
+            inv_has_diff: true
+          when:
+            - existing_inv.stat.exists
+            - existing_inv_contents is defined
+            - existing_inv_contents != (claim_content | from_yaml)
+
+        - name: "Write inventory to file"
+          copy:
+            content: "{{ claim_content | to_nice_yaml(indent=2) }}"
+            dest: "{{ directory }}/iac/inventories/identity-management/inventory/group_vars/all.yml"
+
+        - name: "Create hosts file"
+          copy:
+            content: "[identity-hosts]\nlocalhost"
+            dest: "{{ directory }}/iac/inventories/identity-management/inventory/hosts"
+
+        - name: "Create ResourceClaim"
+          copy:
+            content: "{{ lookup('template', inventory_dir + '/../files/templates/resourceclaim.yaml.j2') }}"
+            dest: "{{ directory }}/ocp-init/id-mgmt.yaml"
+          when:
+            - ( inv_has_diff is defined and inv_has_diff == true ) or ( not existing_inv.stat.exists )
       when:
-        - (inv_has_diff is defined and inv_has_diff is true) or not existing_inv.stat.exists
-    when:
-      - hosting_environments is defined
-      - hosting_environments|length > 0
-      - hosting_environments[0].ocp_sub_domain is defined
+        - hosting_environments is defined
+        - hosting_environments|length > 0
+        - hosting_environments[0].ocp_sub_domain is defined
