@@ -15,14 +15,19 @@ import gitlab
 import dateutil.parser
 
 g = gitlab.Gitlab(
-        gitlab_url,
-        private_token=gitlab_token
+        params["gitlab_url"],
+        private_token=params["gitlab_token"]
 )
 
 
-def should_archive_project(project):
+def archive_project(project):
 
         print("Archiving project")
+
+
+def apply_project(project):
+
+        print("Apply project")
 
 
 def should_process_project(project):
