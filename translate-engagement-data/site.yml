@@ -40,7 +40,7 @@
 
             - name: Combine a list of possible governor_types
               set_fact:
-                governor_types: "{{ ( [ governor_type ] | default([], true) ) + ( governor_types | default([], true) ) | unique }}"
+                governor_types: "{{ ( ([ governor_type ] | default([], true)) + (governor_types | default([], true)) ) | unique }}"
 
             - name: Display governor types
               debug:
