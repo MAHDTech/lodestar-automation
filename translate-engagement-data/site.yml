@@ -1,5 +1,4 @@
 ---
-
 - name: Translate engagement data into Argo-processable resources
   hosts: local
   gather_facts: false
@@ -7,46 +6,76 @@
     - name: Read Engagement Data
       include_vars:
         file: "{{ directory }}/engagement.json"
+
     - name: Verify governor_type is specified
       fail:
-        msg: "Please verify that a governor_type and governor_spec has been specified in your inventory"
+        msg: "Please verify that a governor_type or list of governor_types has been specified in your inventory"
       when:
-        - (governor_type is undefined or (governor_type | trim) == "") or (governor_spec is undefined or (governor_spec | trim) == "")
+        - ( governor_type is undefined or (governor_type | trim) == "" )
+        - ( governor_types is undefined or governor_types == [] )
+
+    - name: Verify governor_spec is specified
+      fail:
+        msg: "Please verify that a governor_spec has been specified in your inventory"
+      when:
+        - ( governor_spec is undefined or (governor_spec | trim) == "" )
+
     - block:
-      - name: Set fact used to check if a hosting environment is needed
-        set_fact:
-          ocp_cloud_provider_name: "{{ hosting_environments[0].ocp_cloud_provider_name | default('other') }}"
-      - block:
-        - name: Read credentials
-          include_vars:
-            file: "{{ directory }}/{{ config_dir }}/{{ item }}"
-          loop:
-            - "ocp-admin-credentials.json"
-            - "ocp-ldap-sa-credentials.json"
-        - name: Create OCP manifest directory if not present
-          file:
-            path: "{{ directory }}/ocp-init"
-            state: directory
-        - name: Create Resource Claim
-          vars:
-            claim_content:
-              email: "{{ engagement_lead_email }}"
-              admin_user: "{{ ocp_admin_username }}"
-              admin_password: "{{ ocp_admin_password }}"
-              aws_region: "{{ hosting_environments[0].ocp_cloud_provider_region }}"
-              customer_name: "{{ customer_name }}"
-              customer_project: "{{ project_name }}"
-              engagement_uuid: "{{ uuid }}"
-              ocp4_installer_version: "{{ hosting_environments[0].ocp_version }}"
-              ocp_ldap_sa_user: "{{ ocp_ldap_sa_username }}"
-              ocp_ldap_sa_password: "{{ ocp_ldap_sa_password }}"
-              ocp_subdomain: "{{ hosting_environments[0].ocp_sub_domain }}"
-          copy:
-            content: "{{ lookup('template', inventory_dir + '/../files/templates/resourceclaim.yaml.j2') }}"
-            dest: "{{ directory }}/ocp-init/cluster-init.yaml"
-        when:
-          - ocp_cloud_provider_name|trim != 'other'
+        - name: Set fact used to check if a hosting environment is needed
+          set_fact:
+            ocp_cloud_provider_name: "{{ hosting_environments[0].ocp_cloud_provider_name | default('other') }}"
+
+        - block:
+            - name: Read credentials
+              include_vars:
+                file: "{{ directory }}/{{ config_dir }}/{{ item }}"
+              loop:
+                - "ocp-admin-credentials.json"
+                - "ocp-ldap-sa-credentials.json"
+
+            - name: Create OCP manifest directory if not present
+              file:
+                path: "{{ directory }}/ocp-init"
+                state: directory
+
+            - name: Combine a list of possible governor_types
+              set_fact:
+                governor_types: "{{ ( [ governor_type ] | default([], true) ) + ( governor_types | default([], true) ) | unique }}"
+
+            - name: Display governor types
+              debug:
+                msg:
+                  - "Governor Types"
+                  - "{{ governor_types }}"
+
+            - name: Create Resource Claim
+              vars:
+                claim_content:
+                  email: "{{ engagement_lead_email }}"
+                  admin_user: "{{ ocp_admin_username }}"
+                  admin_password: "{{ ocp_admin_password }}"
+                  aws_region: "{{ hosting_environments[0].ocp_cloud_provider_region }}"
+                  customer_name: "{{ customer_name }}"
+                  customer_project: "{{ project_name }}"
+                  engagement_uuid: "{{ uuid }}"
+                  ocp4_installer_version: "{{ hosting_environments[0].ocp_version }}"
+                  ocp_ldap_sa_user: "{{ ocp_ldap_sa_username }}"
+                  ocp_ldap_sa_password: "{{ ocp_ldap_sa_password }}"
+                  ocp_subdomain: "{{ hosting_environments[0].ocp_sub_domain }}"
+              copy:
+                content: "{{ lookup('template', inventory_dir + '/../files/templates/resourceclaim.yaml.j2') }}"
+                dest: "{{ directory }}/ocp-init/cluster-init-{{ governor_type | trim | lower }}.yaml"
+              loop: "{{ governor_types }}"
+              loop_control:
+                loop_var: governor_type
+
+            - name: Remove Resource Claim (old format)
+              file:
+                state: absent
+                path: "{{ directory }}/ocp-init/cluster-init.yaml"
+          when:
+            - ocp_cloud_provider_name|trim != 'other'
+
       when:
         - hosting_environments is defined
         - hosting_environments|length > 0
-      
