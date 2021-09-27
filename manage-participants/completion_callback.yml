@@ -11,9 +11,9 @@
     __meta__:
       callback: {}
     agnosticd_callback_url: >-
-      {{ __meta__.callback.url | default('') if __meta__ is defined and __meta__.callback is defined else '' }}
+      {{ __meta__.callback.url | default('') }}
     agnosticd_callback_token: >-
-      {{ __meta__.callback.token | default('') if __meta__ is defined and __meta__.callback is defined else '' }}
+      {{ __meta__.callback.token | default('') }}
   tasks:
 
     - name: Skip completion callback

@@ -15,13 +15,26 @@
       when:
         - ipa_host is defined
 
-- hosts: identity-host
-  name: Process Identity list
+- hosts: identity-hosts
+  name: Process Identity removal list
   tasks:
 
-    - name: Add all users to removal queue
+    - name: Create empty removal list
       set_fact:
-        lodestar_identities_destroy: "{{ ( lodestar_identities_destroy | default([])) + [ { 'first_name': (identity.first_name | trim), 'last_name': (identity.last_name | trim), 'email': (identity.email | trim) , 'user_name': (identity.email.split('@')[0] | trim), 'state': 'absent' } ] }}"
+        lodestar_identities_remove:
+          users: []
+
+    - name: Add users to removal list
+      set_fact:
+        lodestar_identities_remove:
+          users: "{{ lodestar_identities_remove.users + [ user_info ] }}"
+      vars:
+        user_info:
+          first_name: "{{ identity.first_name | trim }}"
+          last_name: "{{ identity.last_name | trim }}"
+          email: "{{ identity.email | trim }}"
+          user_name: "{{ identity.email.split('@')[0] | trim }}"
+          state: "absent"
       with_items: "{{ lodestar_identities.users }}"
       loop_control:
         loop_var: identity
@@ -32,10 +45,10 @@
 - name: Remove participants from IdM
   import_playbook: "../../requirements_roles/infra-ansible/playbooks/manage-identities/manage-idm-identities.yml"
   vars:
-    identities: "{{ lodestar_identities_destroy }}"
+    identities: "{{ lodestar_identities_remove }}"
   when:
-    - lodestar_identities_destroy.users is defined
-    - lodestar_identities_destroy.users != []
+    - lodestar_identities_remove.users is defined
+    - lodestar_identities_remove.users != []
 
 - name: Remove participants from queue
   import_playbook: "process_queue.yml"
