@@ -112,11 +112,11 @@
                 ssh_key: "{{ ( repository_ssh_key | to_nice_yaml( default_style='>-', indent=4, width=5000 ) | trim) if repository_ssh_key is defined else omit }}"
                 username: "{{ repository_username if repository_username is defined else omit }}"
                 password: "{{ repository_password if repository_password is defined else omit }}"
-              git:
-                name: "{{ git.name if git.name is defined else omit }}"
-                username: "{{ git.username if git.username is defined else omit }}"
-                email: "{{ git.email if git.email is defined else omit }}"
-                message: "{{ git.message if git.message is defined else omit }}"
+              git_config:
+                name: "{{ git_config.name | default('Git bot') }}"
+                username: "{{ git_config.username | default('git-bot') }}"
+                email: "{{ git_config.email | default('git-bot@no-reply') }}"
+                message: "{{ git_config.message | default('Auto-update changes') }}"
 
         - name: "Check For Existing Inventory File"
           stat:
