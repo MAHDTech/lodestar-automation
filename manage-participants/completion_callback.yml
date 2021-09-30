@@ -7,13 +7,8 @@
   gather_facts: false
   hosts: localhost
   vars:
-    # default __meta__ to prevent errors on older ansible versions
-    __meta__:
-      callback: {}
-    agnosticd_callback_url: >-
-      {{ __meta__.callback.url | default('') }}
-    agnosticd_callback_token: >-
-      {{ __meta__.callback.token | default('') }}
+    agnosticd_callback_url: "{{ agnosticd_callback_url | default('') }}"
+    agnosticd_callback_token: "{{ agnosticd_callback_token | default('') }}"
   tasks:
 
     - name: Skip completion callback
@@ -24,10 +19,8 @@
 
     - name: Attempt completion callback
       when:
-        - agnosticd_callback_url is defined
-        - agnosticd_callback_url != ''
-        - agnosticd_callback_token is defined
-        - agnosticd_callback_token != ''
+      - agnosticd_callback_url != ''
+      - agnosticd_callback_token != ''
       vars:
         user_body_yaml: "{{ output_dir ~ '/user-body.yaml' }}"
         user_data_yaml: "{{ output_dir ~ '/user-data.yaml' }}"
@@ -58,6 +51,6 @@
             {%- endif -%}
         headers:
           Authorization: Bearer {{ agnosticd_callback_token }}
-        validate_certs: "{{ validate_tower_certs | default(true) }}"
+        validate_certs: "{{ validate_tower_certs | default('yes') }}"
       # Best effort
       ignore_errors: true
