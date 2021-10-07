@@ -36,6 +36,22 @@
       when:
         - emails_to_match is defined
 
+    - name: "Capture processed filenames"
+      set_fact:
+        processed_files: "{{ ( processed_files | default([]) ) + [ ( filepath | string | basename ) ] }}"
+      loop_control:
+        loop_var: filepath
+      loop:
+        - "{{ files_to_remove|flatten }}"
+
+    - name: DEBUG
+      fail:
+        msg:
+          - "Files to remove"
+          - "{{ files_to_remove | join(',') }}"
+          - "Processed files"
+          - "{{ processed_files | join(',') }}"
+
     - name: "Push git repository"
       include_role:
         name: "../../requirements_roles/infra-ansible/roles/scm/git"
@@ -45,7 +61,7 @@
           name: Git Bot
           username: git-bot
           email: git-bot@no-reply
-          message: "Remove processed jobs from queue"
+          message: "Removed processed files; {{ processed_files | join(',') }}"
           remove_local: false
       when:
         - repository is defined

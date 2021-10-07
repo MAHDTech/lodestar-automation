@@ -49,3 +49,54 @@
 
 - name: Update Anarchy with status
   import_playbook: completion_callback.yml
+
+#########################
+# TODO: TEST
+#########################
+
+- hosts: localhost
+  name: TEST
+  tasks:
+
+    - name: Set infra-ansible path (Galaxy)
+      set_fact:
+        infra_ansible_path: "../../requirements_roles/infra-ansible"
+
+    # TODO: What happens when there is more than 1 SCM Project infra-ansible?
+    - name: Find infra-ansible (SCM Projects)
+      find:
+        paths: /var/lib/awx/projects
+        patterns: "_*__infra_ansible"
+        recurse: no
+        file_type: directory
+      register: found_directories
+      when:
+        - use_global_deps is defined
+        - use_global_deps | bool
+
+    - name: Set infra-ansible path (SCM Projects)
+      set_fact:
+        infra_ansible_path: "{{ [item.path] }}"
+      with_items: "{{ found_directories.files }}"
+      when:
+        - use_global_deps is defined
+        - use_global_deps | bool
+
+    - name: Remove participants from IdM
+      include_tasks: "{{ infra_ansible_path }}/playbooks/manage-identities/manage-idm-identities.yml"
+      vars:
+        identities: "{{ lodestar_identities_remove }}"
+      when:
+        - lodestar_identities_remove.users is defined
+        - lodestar_identities_remove.users != []
+
+    - name: Remove participants from queue
+      include_tasks: "process_queue.yml"
+      when:
+        - lodestar_identities_remove.users is defined
+        - lodestar_identities_remove.users != []
+
+    - name: Add participants to IdM
+      include_tasks: "{{ infra_ansible_path }}/playbooks/manage-identities/manage-idm-identities.yml"
+      vars:
+        identities: "{{ lodestar_identities }}"
