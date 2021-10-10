@@ -42,7 +42,7 @@
       loop_control:
         loop_var: filepath
       loop:
-        - "{{ files_to_remove|flatten }}"
+        - "{{ files_to_remove }}"
 
     - name: DEBUG
       fail:
