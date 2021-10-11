@@ -42,15 +42,28 @@
 - name: Remove IPA/IdM identities
   hosts: identity-hosts
   gather_facts: no
-  roles:
-    - role: "{{ infra_ansible_path }}/roles/identity-management/manage-idm-identities"
-    - role: "{{ infra_ansible_path }}/roles/identity-management/manage-user-password"
-    - role: "{{ infra_ansible_path }}/roles/identity-management/manage-idm-user-password"
-  vars:
-    identities: "{{ lodestar_identities_remove }}"
-  when:
-    - lodestar_identities_remove.users is defined
-    - lodestar_identities_remove.users != []
+  tasks:
+
+    - name: Remove identities
+      block:
+
+        - name: "Run role: Manage IDM identities"
+          include_role:
+            name: "{{ infra_ansible_path }}/roles/identity-management/manage-idm-identities"
+
+        - name: "Run role: Manage User Password"
+          include_role:
+            name: "{{ infra_ansible_path }}/roles/identity-management/manage-user-password"
+
+        - name: "Run role: Manage IDM user passwords"
+          include_role:
+            name: "{{ infra_ansible_path }}/roles/identity-management/manage-idm-user-password"
+
+      vars:
+        identities: "{{ lodestar_identities_remove }}"
+      when:
+        - lodestar_identities_remove.users is defined
+        - lodestar_identities_remove.users != []
 
 #- name: Remove participants from IdM
 #  import_playbook: "../../requirements_roles/infra-ansible/playbooks/manage-identities/manage-idm-identities.yml"
