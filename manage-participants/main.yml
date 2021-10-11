@@ -15,6 +15,11 @@
       when:
         - ipa_host is defined
 
+- name: Remove IPA/IdM identities
+  hosts: identity-hosts
+  gather_facts: no
+  tasks:
+
     - name: Set default infra-ansible path (Galaxy)
       set_fact:
         infra_ansible_path: "../../requirements_roles/infra-ansible"
@@ -38,11 +43,6 @@
       when:
         - use_global_deps is defined
         - use_global_deps | bool
-
-- name: Remove IPA/IdM identities
-  hosts: identity-hosts
-  gather_facts: no
-  tasks:
 
     - name: Remove identities
       block:
