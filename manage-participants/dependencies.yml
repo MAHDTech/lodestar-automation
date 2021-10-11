@@ -1,0 +1,25 @@
+---
+
+  - hosts: localhost
+    name: Determine dependency paths
+    tasks:
+
+      - name: Set default infra-ansible path (Galaxy)
+        set_fact:
+          infra_ansible_path: "../../requirements_roles/infra-ansible"
+
+      # TODO: What happens when there is more than 1 SCM Project infra-ansible?
+      - name: Find infra-ansible (SCM Projects)
+        find:
+          paths: /var/lib/awx/projects
+          patterns: "_*__infra_ansible"
+          recurse: no
+          file_type: directory
+        register: found_directories
+        when:
+          - use_global_deps is defined
+          - use_global_deps | bool
+
+      - name: Include Playbook
+        include_playbook:
+          name: main.yml

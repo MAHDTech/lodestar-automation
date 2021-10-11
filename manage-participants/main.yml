@@ -15,150 +15,37 @@
       when:
         - ipa_host is defined
 
-- name: Remove IPA/IdM identities
-  hosts: identity-hosts
-  gather_facts: no
-  tasks:
+- name: Remove participants from IdM
+  import_playbook: "{{ infra_ansible_path }}/playbooks/manage-identities/manage-idm-identities.yml"
+  vars:
+    identities: "{{ lodestar_identities_remove }}"
+  when:
+    - lodestar_identities_remove.users is defined
+    - lodestar_identities_remove.users != []
 
-    - name: Set default infra-ansible path (Galaxy)
-      set_fact:
-        infra_ansible_path: "../../requirements_roles/infra-ansible"
+- name: Remove participants from queue
+  import_playbook: "process_queue.yml"
+  when:
+    - lodestar_identities_remove.users is defined
+    - lodestar_identities_remove.users != []
 
-    # TODO: What happens when there is more than 1 SCM Project infra-ansible?
-    - name: Find infra-ansible (SCM Projects)
-      find:
-        paths: /var/lib/awx/projects
-        patterns: "_*__infra_ansible"
-        recurse: no
-        file_type: directory
-      register: found_directories
-      when:
-        - use_global_deps is defined
-        - use_global_deps | bool
-
-    - name: Set infra-ansible path (SCM Projects)
-      set_fact:
-        infra_ansible_path: "{{ [item.path] }}"
-      with_items: "{{ found_directories.files }}"
-      when:
-        - use_global_deps is defined
-        - use_global_deps | bool
-
-    - name: Remove identities
-      block:
-
-        - name: "Run role: Manage IDM identities"
-          include_role:
-            name: "{{ infra_ansible_path }}/roles/identity-management/manage-idm-identities"
-
-        - name: "Run role: Manage User Password"
-          include_role:
-            name: "{{ infra_ansible_path }}/roles/identity-management/manage-user-password"
-
-        - name: "Run role: Manage IDM user passwords"
-          include_role:
-            name: "{{ infra_ansible_path }}/roles/identity-management/manage-idm-user-password"
-
-      vars:
-        identities: "{{ lodestar_identities_remove }}"
-      when:
-        - lodestar_identities_remove.users is defined
-        - lodestar_identities_remove.users != []
-
-#- name: Remove participants from IdM
-#  import_playbook: "../../requirements_roles/infra-ansible/playbooks/manage-identities/manage-idm-identities.yml"
-#  vars:
-#    identities: "{{ lodestar_identities_remove }}"
-#  when:
-#    - lodestar_identities_remove.users is defined
-#    - lodestar_identities_remove.users != []
-#
-#- name: Remove participants from queue
-#  import_playbook: "process_queue.yml"
-#  when:
-#    - lodestar_identities_remove.users is defined
-#    - lodestar_identities_remove.users != []
-
-- name: Add IPA/IdM identities
-  hosts: identity-hosts
-  gather_facts: no
-  roles:
-    - role: "{{ infra_ansible_path }}/roles/identity-management/manage-idm-identities"
-    - role: "{{ infra_ansible_path }}/roles/identity-management/manage-user-password"
-    - role: "{{ infra_ansible_path }}/roles/identity-management/manage-idm-user-password"
+- name: Add participants to IdM
+  import_playbook: "{{ infra_ansible_path }}/playbooks/manage-identities/manage-idm-identities.yml"
   vars:
     identities: "{{ lodestar_identities }}"
 
+- hosts: mail-host
+  gather_facts: false
+  tasks:
+    - name: "Include additional variables / inventory content"
+      include_vars:
+        file: "{{ item }}"
+      with_items: "{{ email_template | fileglob }}"
 
-#- name: Add participants to IdM
-#  import_playbook: "../../requirements_roles/infra-ansible/playbooks/manage-identities/manage-idm-identities.yml"
-#  vars:
-#    identities: "{{ lodestar_identities }}"
-#
-#- hosts: mail-host
-#  gather_facts: false
-#  tasks:
-#    - name: "Include additional variables / inventory content"
-#      include_vars:
-#        file: "{{ item }}"
-#      with_items: "{{ email_template | fileglob }}"
-#
-#- name: Notify users
-#  import_playbook: "../../requirements_roles/infra-ansible/playbooks/notifications/email-notify-users.yml"
-#  vars:
-#    users: "{{ identities.users }}"
-#
-#- name: Update Anarchy with status
-#  import_playbook: completion_callback.yml
-#
-##########################
-## TODO: TEST
-##########################
-#
-#- hosts: localhost
-#  name: TEST
-#  tasks:
-#
-#    - name: Set infra-ansible path (Galaxy)
-#      set_fact:
-#        infra_ansible_path: "../../requirements_roles/infra-ansible"
-#
-#    # TODO: What happens when there is more than 1 SCM Project infra-ansible?
-#    - name: Find infra-ansible (SCM Projects)
-#      find:
-#        paths: /var/lib/awx/projects
-#        patterns: "_*__infra_ansible"
-#        recurse: no
-#        file_type: directory
-#      register: found_directories
-#      when:
-#        - use_global_deps is defined
-#        - use_global_deps | bool
-#
-#    - name: Set infra-ansible path (SCM Projects)
-#      set_fact:
-#        infra_ansible_path: "{{ [item.path] }}"
-#      with_items: "{{ found_directories.files }}"
-#      when:
-#        - use_global_deps is defined
-#        - use_global_deps | bool
-#
-#    - name: Remove participants from IdM
-#      include_tasks: "{{ infra_ansible_path }}/playbooks/manage-identities/manage-idm-identities.yml"
-#      vars:
-#        identities: "{{ lodestar_identities_remove }}"
-#      when:
-#        - lodestar_identities_remove.users is defined
-#        - lodestar_identities_remove.users != []
-#
-#    - name: Remove participants from queue
-#      include_tasks: "process_queue.yml"
-#      when:
-#        - lodestar_identities_remove.users is defined
-#        - lodestar_identities_remove.users != []
-#
-#    - name: Add participants to IdM
-#      include_tasks: "{{ infra_ansible_path }}/playbooks/manage-identities/manage-idm-identities.yml"
-#      vars:
-#        identities: "{{ lodestar_identities }}"
-#
+- name: Notify users
+  import_playbook: "{{ infra_ansible_path }}/playbooks/notifications/email-notify-users.yml"
+  vars:
+    users: "{{ identities.users }}"
+
+- name: Update Anarchy with status
+  import_playbook: completion_callback.yml
