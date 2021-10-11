@@ -4,11 +4,13 @@
     name: Determine dependency paths
     tasks:
 
+      # This default method is to use any requirements defined via the requirements.yml file
       - name: Set default infra-ansible path (Galaxy)
         set_fact:
           infra_ansible_path: "../../requirements_roles/infra-ansible"
 
       # TODO: What happens when there is more than 1 SCM Project infra-ansible?
+      # Optionally, try and determine dependency path from the SCM Project
       - name: Find infra-ansible (SCM Projects)
         find:
           paths: /var/lib/awx/projects
@@ -16,6 +18,16 @@
           recurse: no
           file_type: directory
         register: found_directories
+        when:
+          - use_global_deps is defined
+          - use_global_deps | bool
+
+      - name: Set override infra-ansible path (SCM Projects)
+        set_fact:
+          infra_ansible_path: "{{ path }}"
+        with_items: "{{ found_directories.paths }}"
+        loop_control:
+          loop_var: path
         when:
           - use_global_deps is defined
           - use_global_deps | bool
