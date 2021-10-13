@@ -57,7 +57,7 @@
           username: git-bot
           email: git-bot@no-reply
           message: >
-            "
+            '
             Removed processed files
             \n
             \n
@@ -65,9 +65,9 @@
             \n
             \n
             {% for file in (processed_files.split(',')) %}
-            - {{ file }}
+            - {{ file }}\n
             {% endfor %}}
-            "
+            '
           remove_local: false
       when:
         - repository is defined
