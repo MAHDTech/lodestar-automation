@@ -56,13 +56,14 @@
           name: Git Bot
           username: git-bot
           email: git-bot@no-reply
-          message: |
+          message: >
             "
             Removed processed files
-
+            \n\n
             The following files were removed from the job queue:
+            \n\n
             {% for file in (processed_files.split(',')) %}
-            - {{ file }}
+            - {{ file }}\n
             {% endfor %}
             "
           remove_local: false
