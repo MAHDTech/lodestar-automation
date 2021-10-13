@@ -45,6 +45,7 @@
         - "{{ files_to_remove }}"
       when:
         - files_to_remove is defined
+        - files_to_remove != ''
 
     - name: "Push git repository"
       include_role:
@@ -59,7 +60,7 @@
             "
             Removed processed files
 
-            {% for file in (processed_files | split(',') ) %}
+            {% for file in (processed_files.split(',')) %}
             - {{ file }}
             {% endfor %}
             "
@@ -67,6 +68,7 @@
       when:
         - repository is defined
         - processed_files is defined
+        - processed_files != ''
 
     - name: Pre-populate identities
       set_fact:
