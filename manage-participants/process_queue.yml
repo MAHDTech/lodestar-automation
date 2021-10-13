@@ -66,6 +66,7 @@
           remove_local: false
       when:
         - repository is defined
+        - processed_files is defined
 
     - name: Pre-populate identities
       set_fact:
