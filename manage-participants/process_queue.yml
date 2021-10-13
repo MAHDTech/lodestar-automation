@@ -43,6 +43,8 @@
         loop_var: filepath
       with_items:
         - "{{ files_to_remove }}"
+      when:
+        - files_to_remove is defined
 
     - name: "Push git repository"
       include_role:
