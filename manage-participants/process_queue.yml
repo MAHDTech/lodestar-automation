@@ -60,6 +60,7 @@
             "
             Removed processed files
 
+            The following files were removed from the job queue:
             {% for file in (processed_files.split(',')) %}
             - {{ file }}
             {% endfor %}
