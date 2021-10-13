@@ -53,7 +53,14 @@
           name: Git Bot
           username: git-bot
           email: git-bot@no-reply
-          message: "Removed processed files\n\n{{ processed_files }}"
+          message: |
+            "
+            Removed processed files
+
+            {% for file in (processed_files | split(',') ) %}
+            - {{ file }}
+            {% endfor %}
+            "
           remove_local: false
       when:
         - repository is defined
