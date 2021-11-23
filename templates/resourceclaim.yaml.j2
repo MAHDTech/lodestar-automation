@@ -15,8 +15,8 @@ spec:
       spec:
         vars:
           action_schedule:
-            start: "{{ timestamp.utcnow }}"
-            stop: "{{ timestamp.utcnow.add('4h') }}"
+            start: "{{ now(utc=True).isoformat() }}"
+            stop: "{{ now(utc=True).isoformat() | add_time(hours=4) }}"
           {%- if desired_state is defined and desired_state|length %}
           desired_state: {{ desired_state }}
           {%- endif %}
