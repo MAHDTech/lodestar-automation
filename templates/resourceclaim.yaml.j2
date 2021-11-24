@@ -13,6 +13,12 @@ spec:
       namespace: lodestar-babylon-operators
     template:
       spec:
+        # The action schedule is hardcoded to fixed dates to avoid any accidental shutdown.
+        action_schedule:
+          default_runtime: 1000d
+          maximum_runtime: 1000d
+          start: "2020-01-01T00:00:00Z"
+          stop: "2100-01-01T00:00:00Z"
         vars:
           {%- if desired_state is defined and desired_state|length %}
           desired_state: {{ desired_state }}
